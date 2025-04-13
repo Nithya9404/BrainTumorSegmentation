@@ -73,7 +73,7 @@ def generate_grad_cam(model, image):
     max_val = np.max(heatmap)
     if max_val > 0:
         heatmap /= max_val
-    return heatmap.numpy()
+    return heatmap
 
 
 def describe_tumor_from_gradcam(heatmap):
