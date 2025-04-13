@@ -78,9 +78,15 @@ def describe_tumor_from_gradcam(heatmap):
     high_ratio = np.sum(high_activation) / total_pixels
     medium_ratio = np.sum(medium_activation) / total_pixels
 
+    # Safely check and handle empty or irregular coordinates
     coords = np.column_stack(np.where(high_activation))
+    
     if len(coords) > 0:
-        y, x = np.mean(coords, axis=0).astype(int)
+        # Check if coords has the expected 2D shape (y, x)
+        if coords.shape[1] == 2:
+            y, x = np.mean(coords, axis=0).astype(int)
+        else:
+            y, x = coords[0]  # Default to the first coordinate in case of unexpected shape
         region = "center" if (x > 80 and x < 180) else ("left side" if x <= 80 else "right side")
     else:
         region = "not clearly defined"
@@ -106,6 +112,7 @@ def describe_tumor_from_gradcam(heatmap):
     message += "\n*Note: This explanation is AI-generated from heatmap focus and does not replace professional medical interpretation. Please consult a radiologist or neurologist for a clinical diagnosis.*"
 
     return message
+
 
 def get_image_download_link(img_array, filename="gradcam.png"):
     _, buffer = cv2.imencode(".png", img_array)
