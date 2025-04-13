@@ -75,9 +75,7 @@ def generate_grad_cam(model, image):
         heatmap /= max_val
     return heatmap
 
-
 def describe_tumor_from_gradcam(heatmap):
-    # Define high-activation regions
     high_activation = heatmap > 0.6
     medium_activation = (heatmap > 0.3) & (heatmap <= 0.6)
     low_activation = heatmap <= 0.3
@@ -86,7 +84,6 @@ def describe_tumor_from_gradcam(heatmap):
     high_ratio = np.sum(high_activation) / total_pixels
     medium_ratio = np.sum(medium_activation) / total_pixels
 
-    # Estimate tumor location
     coords = np.column_stack(np.where(high_activation))
     if len(coords) > 0:
         y, x = np.mean(coords, axis=0).astype(int)
@@ -94,7 +91,6 @@ def describe_tumor_from_gradcam(heatmap):
     else:
         region = "not clearly defined"
 
-    # Determine tumor size
     if high_ratio > 0.25:
         size_desc = "large"
     elif high_ratio > 0.1:
@@ -104,7 +100,6 @@ def describe_tumor_from_gradcam(heatmap):
     else:
         size_desc = "not clearly visible"
 
-    # Friendly interpretation
     message = "**Tumor Analysis Summary**\n\n"
     if high_ratio > 0.02:
         message += f"- A **{size_desc} tumor-like region** is likely detected.\n"
@@ -114,7 +109,6 @@ def describe_tumor_from_gradcam(heatmap):
         message += "- No clear tumor was detected in this scan by the AI model.\n"
         message += "- The highlighted areas are minimal, suggesting normal or non-critical features.\n"
 
-    # Add a clear caution for users
     message += "\n*Note: This explanation is AI-generated from heatmap focus and does not replace professional medical interpretation. Please consult a radiologist or neurologist for a clinical diagnosis.*"
 
     return message
@@ -136,7 +130,6 @@ if uploaded_file is not None:
     with open(file_path, "wb") as f:
         f.write(uploaded_file.read())
 
-    # Check file type and handle accordingly
     if uploaded_file.name.endswith(('.nii', '.nii.gz')):
         nii_path = file_path
     elif uploaded_file.name.endswith('.png'):
@@ -150,7 +143,6 @@ if uploaded_file is not None:
     slice_img = volume[:, :, slice_num]
     input_img = preprocess_image(slice_img)
 
-    # Normalize slice image to [0.0, 1.0]
     slice_img_norm = (slice_img - np.min(slice_img)) / (np.max(slice_img) - np.min(slice_img) + 1e-8)
     st.image(slice_img_norm, caption="Selected MRI Slice", use_column_width=True)
     model = load_model("unet_finetuned_brats_validation.keras", compile=False)
@@ -161,13 +153,18 @@ if uploaded_file is not None:
     # Grad-CAM
     gradcam = generate_grad_cam(model, input_img)
     heatmap = np.uint8(255 * gradcam)
-    overlay = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-    overlay_img = cv2.addWeighted(np.uint8(input_img.squeeze() * 255), 0.7, overlay, 0.3, 0)
+    heatmap_resized = cv2.resize(heatmap, (256, 256))
+    overlay = cv2.applyColorMap(heatmap_resized, cv2.COLORMAP_JET)
 
-    # Grad-CAM Tumor Explanation
+    # Convert input image to BGR for blending
+    base_img = np.uint8(input_img.squeeze() * 255)
+    if len(base_img.shape) == 2:
+        base_img = cv2.cvtColor(base_img, cv2.COLOR_GRAY2BGR)
+
+    overlay_img = cv2.addWeighted(base_img, 0.7, overlay, 0.3, 0)
+
     explanation = describe_tumor_from_gradcam(gradcam)
 
-    # Display results
     st.image(pred_mask.squeeze(), caption="Predicted Tumor Mask", use_column_width=True)
     st.image(overlay_img, caption="Grad-CAM Heatmap", use_column_width=True)
     st.markdown(get_image_download_link(overlay_img), unsafe_allow_html=True)
