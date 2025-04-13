@@ -11,6 +11,7 @@ from PIL import Image
 from io import BytesIO
 import matplotlib.pyplot as plt
 import base64
+from tensorflow.keras import backend as K
 
 # ------------------------- Utility Functions ------------------------
 
