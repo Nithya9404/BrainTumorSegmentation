@@ -15,11 +15,15 @@ import base64
 # ------------------------- Utility Functions ------------------------
 
 def load_nii_volume(filepath, target_size=(256, 256)):
-    img = nib.load(filepath).get_fdata()
-    if img.ndim == 2:
-        img = np.expand_dims(img, axis=-1)
-    img = np.stack([cv2.resize(img[:, :, i], target_size) for i in range(img.shape[-1])], axis=-1)
-    return img
+    try:
+        img = nib.load(filepath).get_fdata()
+        if img.ndim == 2:
+            img = np.expand_dims(img, axis=-1)
+        img = np.stack([cv2.resize(img[:, :, i], target_size) for i in range(img.shape[-1])], axis=-1)
+        return img
+    except Exception as e:
+        st.error(f"Error loading NIfTI file: {e}")
+        return None
 
 def preprocess_image(img_slice):
     img = cv2.resize(img_slice, (256, 256))
