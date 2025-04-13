@@ -42,17 +42,7 @@ def convert_png_to_nii(png_file, target_size=(256, 256)):
     return tmp_nii.name
 
 def generate_grad_cam(model, image):
-    last_conv_layer = None
-    for layer in reversed(model.layers):
-        try:
-            if 'conv' in layer.name and len(layer.output.shape) == 4:
-                last_conv_layer = layer.name
-                break
-        except:
-            continue
-
-    if last_conv_layer is None:
-        raise ValueError("No suitable conv layer found for Grad-CAM.")
+    last_conv_layer = "conv2d_32"  # Hardcoded last Conv2D layer name
 
     grad_model = Model(
         [model.inputs], 
@@ -62,12 +52,14 @@ def generate_grad_cam(model, image):
     with tf.GradientTape() as tape:
         conv_output, predictions = grad_model(np.expand_dims(image, axis=0))
         loss = K.mean(predictions)
+
     grads = tape.gradient(loss, conv_output)[0]
     pooled_grads = K.mean(grads, axis=(0, 1))
     cam = np.dot(conv_output[0], pooled_grads)
     cam = cv2.resize(cam, image.shape[:2])
     cam = (cam - cam.min()) / (cam.max() - cam.min())
     return cam
+
 
 def describe_tumor_from_gradcam(heatmap):
     high_activation = heatmap > 0.6
