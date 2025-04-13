@@ -133,38 +133,48 @@ if uploaded_file is not None:
         st.stop()
 
     volume = load_nii_volume(nii_path)
+    
+    # Select 5 slices (for example, 2 slices before and 2 after the middle slice)
+    middle_slice = volume.shape[-1] // 2
+    slice_range = range(middle_slice - 2, middle_slice + 3)  # Select 5 slices
+    input_imgs = [preprocess_image(volume[:, :, slice_num]) for slice_num in slice_range]
 
-    # Automatically select the middle slice
-    slice_num = volume.shape[-1] // 2
-    slice_img = volume[:, :, slice_num]
-    input_img = preprocess_image(slice_img)
-
-    slice_img_norm = (slice_img - np.min(slice_img)) / (np.max(slice_img) - np.min(slice_img) + 1e-8)
-    st.image(slice_img_norm, caption="Middle MRI Slice", use_column_width=True)
+    st.subheader("Grad-CAM Analysis of 5 Middle Slices:")
 
     model = load_model("unet_finetuned_brats_validation.keras", compile=False)
 
-    prediction = model.predict(np.expand_dims(input_img, axis=0))[0]
-    pred_mask = (prediction > 0.5).astype(np.uint8)
+    gradcam_images = []
+    for input_img in input_imgs:
+        # Generate Grad-CAM for each slice
+        gradcam = generate_grad_cam(model, input_img)
+        heatmap = np.uint8(255 * gradcam)
+        heatmap_resized = cv2.resize(heatmap, (256, 256))
+        overlay = cv2.applyColorMap(heatmap_resized, cv2.COLORMAP_JET)
 
-    # Grad-CAM
-    gradcam = generate_grad_cam(model, input_img)
-    heatmap = np.uint8(255 * gradcam)
-    heatmap_resized = cv2.resize(heatmap, (256, 256))
-    overlay = cv2.applyColorMap(heatmap_resized, cv2.COLORMAP_JET)
+        # Convert input image to BGR for blending
+        base_img = np.uint8(input_img.squeeze() * 255)
+        if len(base_img.shape) == 2:
+            base_img = cv2.cvtColor(base_img, cv2.COLOR_GRAY2BGR)
 
-    # Convert input image to BGR for blending
-    base_img = np.uint8(input_img.squeeze() * 255)
-    if len(base_img.shape) == 2:
-        base_img = cv2.cvtColor(base_img, cv2.COLOR_GRAY2BGR)
+        overlay_img = cv2.addWeighted(base_img, 0.7, overlay, 0.3, 0)
+        gradcam_images.append(overlay_img)
 
-    overlay_img = cv2.addWeighted(base_img, 0.7, overlay, 0.3, 0)
-
-    explanation = describe_tumor_from_gradcam(gradcam)
-
-    st.image(pred_mask.squeeze(), caption="Predicted Tumor Mask", use_column_width=True)
-    st.image(overlay_img, caption="Grad-CAM Heatmap", use_column_width=True)
-    st.markdown(get_image_download_link(overlay_img), unsafe_allow_html=True)
+    # Display Grad-CAM heatmaps
+    col1, col2, col3, col4, col5 = st.columns(5)
+    for i, gradcam_img in enumerate(gradcam_images):
+        if i == 0:
+            col1.image(gradcam_img, caption=f"Slice {middle_slice - 2 + i}", use_column_width=True)
+        elif i == 1:
+            col2.image(gradcam_img, caption=f"Slice {middle_slice - 2 + i}", use_column_width=True)
+        elif i == 2:
+            col3.image(gradcam_img, caption=f"Slice {middle_slice - 2 + i}", use_column_width=True)
+        elif i == 3:
+            col4.image(gradcam_img, caption=f"Slice {middle_slice - 2 + i}", use_column_width=True)
+        else:
+            col5.image(gradcam_img, caption=f"Slice {middle_slice - 2 + i}", use_column_width=True)
 
     st.subheader("Explainable AI Description:")
+    explanation = describe_tumor_from_gradcam(gradcam_images[2])  # Use the middle slice for explanation
     st.write(explanation)
+
+    st.markdown(get_image_download_link(gradcam_images[2]), unsafe_allow_html=True)
