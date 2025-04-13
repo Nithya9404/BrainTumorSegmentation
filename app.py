@@ -30,6 +30,7 @@ def convert_png_to_nii(png_bytes, target_size=(256, 256)):
     nib.save(nii_img, tmp_nii.name)
     return tmp_nii.name
 
+
 def preprocess_image(img):
     return img.astype(np.float32) / 255.0
 
@@ -76,11 +77,11 @@ if uploaded_file:
     if uploaded_file.name.endswith(('.nii', '.nii.gz')):
         nii_path = file_path
     elif uploaded_file.name.endswith('.png'):
-        nii_path = convert_png_to_nii(uploaded_file)
+        png_path = uploaded_file
+        nii_path = convert_png_to_nii(png_path)
     else:
         st.error("Unsupported file format.")
         st.stop()
-
     volume = load_nii_volume(nii_path)
     slice_num = 0 if volume.shape[-1] == 1 else st.slider("Select Slice", 0, volume.shape[-1] - 1)
     slice_img = volume[:, :, slice_num]
