@@ -59,21 +59,14 @@ def generate_grad_cam(model, image):
     )
 
     with tf.GradientTape() as tape:
-        inputs = tf.cast(tf.expand_dims(image, axis=0), tf.float32)
-        conv_output, predictions = grad_model(inputs)
-        loss = tf.reduce_mean(predictions)
-
-    grads = tape.gradient(loss, conv_output)
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-
-    conv_output = conv_output[0]
-    heatmap = tf.reduce_sum(tf.multiply(pooled_grads, conv_output), axis=-1)
-
-    heatmap = np.maximum(heatmap, 0)
-    max_val = np.max(heatmap)
-    if max_val > 0:
-        heatmap /= max_val
-    return heatmap
+        conv_output, predictions = grad_model(np.expand_dims(image, axis=0))
+        loss = K.mean(predictions)
+    grads = tape.gradient(loss, conv_output)[0]
+    pooled_grads = K.mean(grads, axis=(0, 1))
+    cam = np.dot(conv_output[0], pooled_grads)
+    cam = cv2.resize(cam, image.shape[:2])
+    cam = (cam - cam.min()) / (cam.max() - cam.min())
+    return cam
 
 def describe_tumor_from_gradcam(heatmap):
     high_activation = heatmap > 0.6
