@@ -1,7 +1,9 @@
+opencv-python-headless
 streamlit
-numpy
 nibabel
-opencv-python
+numpy
 tensorflow
+shap
+Pillow
 matplotlib
-pillow
+
