@@ -43,15 +43,24 @@ def convert_png_to_nii(png_file, target_size=(256, 256)):
 def generate_grad_cam(model, image):
     last_conv_layer = None
     for layer in reversed(model.layers):
-        if 'conv' in layer.name and len(layer.output_shape) == 4:
-            last_conv_layer = layer.name
-            break
+        try:
+            if 'conv' in layer.name and len(layer.output.shape) == 4:
+                last_conv_layer = layer.name
+                break
+        except:
+            continue
+
     if last_conv_layer is None:
         raise ValueError("No suitable conv layer found for Grad-CAM.")
 
-    grad_model = Model([model.inputs], [model.get_layer(last_conv_layer).output, model.output])
+    grad_model = Model(
+        [model.inputs], 
+        [model.get_layer(last_conv_layer).output, model.output]
+    )
+
     with tf.GradientTape() as tape:
-        conv_output, predictions = grad_model(np.expand_dims(image, axis=0))
+        inputs = tf.cast(tf.expand_dims(image, axis=0), tf.float32)
+        conv_output, predictions = grad_model(inputs)
         loss = tf.reduce_mean(predictions)
 
     grads = tape.gradient(loss, conv_output)
@@ -61,8 +70,11 @@ def generate_grad_cam(model, image):
     heatmap = tf.reduce_sum(tf.multiply(pooled_grads, conv_output), axis=-1)
 
     heatmap = np.maximum(heatmap, 0)
-    heatmap /= tf.reduce_max(heatmap)
+    max_val = np.max(heatmap)
+    if max_val > 0:
+        heatmap /= max_val
     return heatmap.numpy()
+
 
 def describe_tumor_from_gradcam(heatmap):
     # Define high-activation regions
