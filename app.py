@@ -82,7 +82,7 @@ def convert_png_to_nii(png_file):
     img_array = np.array(image).astype(np.float32)
     nii_volume = np.expand_dims(img_array, axis=-1)
     nii_img = nib.Nifti1Image(nii_volume, affine=np.eye(4))
-    tmp_nii = tempfile.NamedTemporaryFile(delete=False, suffix=".nii.gz")
+    tmp_nii = tempfile.NamedTemporaryFile(delete=False, suffix=".nii")
     nib.save(nii_img, tmp_nii.name)
     return tmp_nii.name
 
@@ -90,20 +90,22 @@ def convert_png_to_nii(png_file):
 st.set_page_config(page_title="Brain Tumor Segmentation AI", layout="centered")
 st.title("🧠 Brain Tumor Segmentation & Interpretation")
 
-uploaded_file = st.file_uploader("Upload a .nii or .png MRI slice", type=["nii", "nii.gz", "png"])
+uploaded_file = st.file_uploader("Upload a .nii/.nii.gz or .png MRI slice", type=["nii", "nii.gz", "png"])
 
 if uploaded_file:
-    file_ext = os.path.splitext(uploaded_file.name)[-1]
-    if file_ext.lower() == ".png":
-        st.info("Converting PNG to NIfTI...")
+    file_ext = os.path.splitext(uploaded_file.name)[-1].lower()
+
+    if file_ext == ".png":
+        st.info("Converting PNG to NIfTI (.nii)...")
         nii_path = convert_png_to_nii(uploaded_file)
     else:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".nii.gz") as tmp_file:
+        suffix = ".nii.gz" if file_ext == ".gz" else ".nii"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
             tmp_file.write(uploaded_file.read())
             nii_path = tmp_file.name
 
     volume = load_nii_volume(nii_path)
-    slice_num = 0 if volume.shape[-1] == 1 else st.slider("Select Slice", 0, volume.shape[-1]-1)
+    slice_num = 0 if volume.shape[-1] == 1 else st.slider("Select Slice", 0, volume.shape[-1] - 1)
     slice_img = volume[:, :, slice_num]
     input_img = np.expand_dims(slice_img, axis=-1)
 
@@ -122,6 +124,7 @@ if uploaded_file:
 
     tmp_grad_path = f"gradcam_sample_{slice_num}.png"
     cv2.imwrite(tmp_grad_path, overlay_img)
+
     st.markdown("### 📝 Tumor Description")
     st.markdown(describe_tumor_from_gradcam(tmp_grad_path))
 
