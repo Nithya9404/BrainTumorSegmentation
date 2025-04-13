@@ -88,7 +88,7 @@ if uploaded_file:
     input_img = np.expand_dims(slice_img, axis=-1)
     input_img = preprocess_image(input_img)
 
-    model = load_model("models/attention_unet_model.h5", compile=False)
+    model = load_model("unet_finedtuned_brats_validation.keras", compile=False)
 
     prediction = model.predict(np.expand_dims(input_img, axis=0))[0]
     pred_mask = (prediction > 0.5).astype(np.uint8)
