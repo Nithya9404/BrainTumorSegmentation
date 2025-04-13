@@ -138,8 +138,9 @@ if uploaded_file is not None:
     slice_img = volume[:, :, slice_num]
     input_img = preprocess_image(slice_img)
 
-    st.image(slice_img, caption="Selected MRI Slice", use_column_width=True)
-
+    # Normalize slice image to [0.0, 1.0]
+    slice_img_norm = (slice_img - np.min(slice_img)) / (np.max(slice_img) - np.min(slice_img) + 1e-8)
+    st.image(slice_img_norm, caption="Selected MRI Slice", use_column_width=True)
     model = load_model("unet_finetuned_brats_validation.keras", compile=False)
 
     prediction = model.predict(np.expand_dims(input_img, axis=0))[0]
