@@ -125,12 +125,13 @@ if uploaded_file is not None:
         st.stop()
 
     volume = load_nii_volume(nii_path)
-    slice_num = 0 if volume.shape[-1] == 1 else st.slider("Select Slice", 0, volume.shape[-1] - 1, 0)
-    slice_img = volume[:, :, slice_num]
+    slice_index = volume.shape[-1] // 2
+    slice_img = volume[:, :, slice_index]
     input_img = preprocess_image(slice_img)
 
     slice_img_norm = (slice_img - np.min(slice_img)) / (np.max(slice_img) - np.min(slice_img) + 1e-8)
-    st.image(slice_img_norm, caption="Selected MRI Slice", use_column_width=True)
+    st.image(slice_img_norm, caption="Selected MRI Slice (Middle Slice)", use_column_width=True)
+
     model = load_model("unet_finetuned_brats_validation.keras", compile=False)
 
     prediction = model.predict(np.expand_dims(input_img, axis=0))[0]
