@@ -24,17 +24,31 @@ def load_nii_volume(filepath, target_size=(256, 256)):
     img = np.stack([cv2.resize(img[:, :, i], target_size) for i in range(img.shape[-1])], axis=-1)
     return img.astype(np.float32) / 255.0
 
-def generate_grad_cam(model, image, layer_name="conv2d_23"):
-    grad_model = Model([model.inputs], [model.get_layer(layer_name).output, model.output])
+def generate_grad_cam(model, image):
+    # Automatically get the last Conv2D layer
+    last_conv_layer = None
+    for layer in reversed(model.layers):
+        if isinstance(layer, tf.keras.layers.Conv2D):
+            last_conv_layer = layer.name
+            break
+
+    if not last_conv_layer:
+        raise ValueError("No Conv2D layer found in the model.")
+
+    grad_model = Model([model.inputs], [model.get_layer(last_conv_layer).output, model.output])
+
     with tf.GradientTape() as tape:
         conv_output, predictions = grad_model(np.expand_dims(image, axis=0))
         loss = K.mean(predictions)
+
     grads = tape.gradient(loss, conv_output)[0]
     pooled_grads = K.mean(grads, axis=(0, 1))
     cam = np.dot(conv_output[0], pooled_grads)
+
     cam = cv2.resize(cam, image.shape[:2])
-    cam = (cam - cam.min()) / (cam.max() - cam.min())
+    cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)  # Normalize safely
     return cam
+
 
 def describe_tumor_from_gradcam(image_path):
     img = cv2.imread(image_path)
