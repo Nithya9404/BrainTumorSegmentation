@@ -130,7 +130,7 @@ if uploaded_file is not None:
     input_img = preprocess_image(slice_img)
 
     slice_img_norm = (slice_img - np.min(slice_img)) / (np.max(slice_img) - np.min(slice_img) + 1e-8)
-    st.image(slice_img_norm, caption="Selected MRI Slice (Middle Slice)", use_column_width=True)
+    st.image(slice_img_norm, caption="Selected MRI Slice (Middle Slice)", use_container_width=True)
 
     model = load_model("unet_finetuned_brats_validation.keras", compile=False)
 
@@ -151,7 +151,7 @@ if uploaded_file is not None:
     overlay_img = cv2.addWeighted(base_img, 0.7, overlay, 0.3, 0)
 
     explanation = describe_tumor_from_gradcam(gradcam)
-    st.image(overlay_img, caption="Grad-CAM Heatmap", use_column_width=True)
+    st.image(overlay_img, caption="Grad-CAM Heatmap", use_container_width=True)
     st.markdown(get_image_download_link(overlay_img), unsafe_allow_html=True)
 
     st.subheader("Explainable AI Description:")
